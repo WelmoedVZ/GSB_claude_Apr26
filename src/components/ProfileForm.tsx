@@ -8,9 +8,10 @@ interface ProfileFormProps {
   onChange: (profile: UserProfile) => void;
   onSave: () => void;
   onClear: () => void;
+  saved: boolean;
 }
 
-export default function ProfileForm({ profile, onChange, onSave, onClear }: ProfileFormProps) {
+export default function ProfileForm({ profile, onChange, onSave, onClear, saved }: ProfileFormProps) {
   function updateField(field: keyof UserProfile, value: string) {
     onChange({ ...profile, [field]: value });
   }
@@ -113,13 +114,17 @@ export default function ProfileForm({ profile, onChange, onSave, onClear }: Prof
         </div>
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex items-center gap-3">
         <button
           type="button"
           onClick={onSave}
-          className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+          className={`rounded-lg px-6 py-2.5 text-sm font-medium transition-colors ${
+            saved
+              ? 'bg-green-600 text-white'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          }`}
         >
-          Save Profile
+          {saved ? 'Saved!' : 'Save Profile'}
         </button>
         <button
           type="button"
@@ -128,6 +133,9 @@ export default function ProfileForm({ profile, onChange, onSave, onClear }: Prof
         >
           Clear
         </button>
+        {saved && (
+          <span className="text-sm text-green-600">Profile saved to browser storage</span>
+        )}
       </div>
     </div>
   );

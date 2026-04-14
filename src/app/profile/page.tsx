@@ -1,21 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { DEFAULT_PROFILE } from '@/lib/constants';
-import { ParseResumeResponse } from '@/types';
+import { ParseResumeResponse, UserProfile } from '@/types';
 import ProfileForm from '@/components/ProfileForm';
 import ResumeUpload from '@/components/ResumeUpload';
 
 export default function ProfilePage() {
   const { profile, setProfile, isLoaded } = useProfile();
-  const [draft, setDraft] = useState(profile);
+  const [draft, setDraft] = useState<UserProfile>(DEFAULT_PROFILE);
   const [saved, setSaved] = useState(false);
+  const [synced, setSynced] = useState(false);
 
-  // Sync draft when localStorage loads
-  if (isLoaded && draft === DEFAULT_PROFILE && profile !== DEFAULT_PROFILE) {
-    setDraft(profile);
-  }
+  // Sync draft from localStorage once loaded
+  useEffect(() => {
+    if (isLoaded && !synced) {
+      setDraft(profile);
+      setSynced(true);
+    }
+  }, [isLoaded, synced, profile]);
 
   function handleResumeParsed(data: ParseResumeResponse) {
     const updated = {
@@ -40,8 +44,10 @@ export default function ProfilePage() {
   }
 
   function handleClear() {
-    setDraft(DEFAULT_PROFILE);
-    setProfile(DEFAULT_PROFILE);
+    const empty = { ...DEFAULT_PROFILE };
+    setDraft(empty);
+    setProfile(empty);
+    setSaved(false);
   }
 
   if (!isLoaded) {
@@ -59,12 +65,6 @@ export default function ProfilePage() {
         Set up your background to get personalized interview questions and feedback.
       </p>
 
-      {saved && (
-        <div className="mt-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
-          Profile saved successfully!
-        </div>
-      )}
-
       <div className="mt-8 space-y-8">
         <ResumeUpload onParsed={handleResumeParsed} />
         <ProfileForm
@@ -72,6 +72,7 @@ export default function ProfilePage() {
           onChange={setDraft}
           onSave={handleSave}
           onClear={handleClear}
+          saved={saved}
         />
       </div>
     </div>
