@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { extractText } from 'unpdf';
 import anthropic from '@/lib/anthropic';
 import { buildResumeParsingPrompt } from '@/lib/prompts';
 import { ParseResumeResponse } from '@/types';
@@ -15,11 +16,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'No file provided' }, { status: 400 });
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require('pdf-parse');
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const pdfData = await pdfParse(buffer);
-      resumeText = pdfData.text;
+      const arrayBuffer = await file.arrayBuffer();
+      const { text } = await extractText(new Uint8Array(arrayBuffer));
+      resumeText = Array.isArray(text) ? text.join('\n') : String(text);
     } else {
       const body = await request.json();
       resumeText = body.resumeText || '';
@@ -27,7 +26,7 @@ export async function POST(request: Request) {
 
     if (resumeText.trim().length < 50) {
       return NextResponse.json(
-        { error: 'Resume text is too short. Please provide more content.' },
+        { error: 'Resume text is too short. The PDF may not contain extractable text, or too little content was provided.' },
         { status: 400 }
       );
     }
@@ -41,12 +40,12 @@ export async function POST(request: Request) {
       messages: [{ role: 'user', content: userMessage }],
     });
 
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
-    const parsed = parseJSON(text);
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+    const parsed = parseJSON(responseText);
 
     if (!parsed || !parsed.currentRole) {
       return NextResponse.json(
-        { error: 'Failed to parse resume. Please try again.' },
+        { error: 'Failed to extract profile details from resume. Please try pasting the text instead.' },
         { status: 500 }
       );
     }
@@ -63,8 +62,9 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Parse resume error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to parse resume. Please try again.' },
+      { error: `Failed to parse resume: ${message}` },
       { status: 500 }
     );
   }
