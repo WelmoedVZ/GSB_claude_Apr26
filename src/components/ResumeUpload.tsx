@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ParseResumeResponse } from '@/types';
 
 interface ResumeUploadProps {
@@ -13,12 +13,10 @@ export default function ResumeUpload({ onParsed }: ResumeUploadProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadFile = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
       setError('Please upload a PDF file.');
       return;
@@ -51,6 +49,36 @@ export default function ResumeUpload({ onParsed }: ResumeUploadProps) {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  }, [onParsed]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  }
+
+  function handleClickUpload() {
+    fileInputRef.current?.click();
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
   }
 
   async function handlePasteSubmit() {
@@ -120,20 +148,40 @@ export default function ResumeUpload({ onParsed }: ResumeUploadProps) {
       <div className="mt-4">
         {mode === 'upload' ? (
           <div>
-            <label className="flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed border-gray-300 p-8 hover:border-indigo-400 transition-colors">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={loading}
+            />
+
+            {/* Click + drag-and-drop zone */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleClickUpload}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClickUpload(); }}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`flex cursor-pointer flex-col items-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+                dragOver
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+              } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+            >
               <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15m0-3l-3-3m0 0l-3 3m3-3V15" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              <span className="mt-2 text-sm text-gray-600">Click to upload a PDF resume</span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleFileUpload}
-                disabled={loading}
-              />
-            </label>
+              <span className="mt-2 text-sm font-medium text-gray-700">
+                {dragOver ? 'Drop your PDF here' : 'Click to upload or drag and drop'}
+              </span>
+              <span className="mt-1 text-xs text-gray-500">PDF files only</span>
+            </div>
           </div>
         ) : (
           <div>
